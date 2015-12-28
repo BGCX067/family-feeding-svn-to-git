@@ -1,0 +1,30 @@
+%language: eclipse prolog
+
+:-module(diet_products).
+:-export(goal/1).
+:-export(nutrition_per_mass/1).
+:-export(product_raw/14).
+
+goal(products_count_minmax(0,100)).
+goal(products_mass_minmax(0,10000000)).
+
+goal(products_nutrition_minmax(
+    calories(3250000,3260000),
+    protein(120000,160000),
+    fat(120000,130000),
+    carbo(400000,420000),
+    sodium(0,2300000),
+    chol(0,300000),
+    fiber(25000,35000))).
+
+nutrition_per_mass(100000).
+
+%products nutrition facts.
+%           |energy| prot|  fat |carbo| sodium| cholesterol| fiber| unit |  min  |   max  | price|  punit |     bar code    |        title
+ product_raw(408000,81600,  3400,10200, 200000,      102000,     0,  1000,  25000,   45000,296000, 2270000,               "","whey protein <optimum nutrition>").
+ product_raw(900000,    0,100000,    0,      0,           0,     0, 10000,  60000,   60000, 18770,  500000,               "","flux oil").
+ product_raw(320000,18000,  7700,45300,   3000,           0, 16500,100000, 100000,  100000,  4390,  200000,               "","oat bran <myllyn paras>").
+ product_raw(379000, 6300,   800,86500, 700000,           0,     0, 10000, 200000,  250000, 10720,  700000,"4 606272 013845","extrused corn flakes <hrutka>").
+ product_raw(256000, 2300,     0,58400,      0,           0,  7100, 10000, 160000,  160000, 26640,  777000,"4 600294 002078","dried prunes <nature gifts>").
+ product_raw( 59000, 2900,  3200, 4700,      0,       10000,     0, 50000,1700000, 1700000,  3900,  950000,               "","milk 3.2% <country hut> 950 ml").
+%           |energy| prot|  fat |carbo| sodium| cholesterol| fiber| unit |  min  |   max  | price|  punit |     bar code    |        title

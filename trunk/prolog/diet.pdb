@@ -1,0 +1,173 @@
+%language: eclipse prolog
+
+:-lib(ic).
+:-lib(ic_global).
+:-use_module("diet_products.pdb").
+
+%helpers
+
+product(nutrition(calories(K),protein(P),fat(F),carbo(C),sodium(S),chol(H),fiber(B)),mass(granularity(MG),min(M_MIN),max(M_MAX)),price(PCOUNT,PUNIT),NAME):-
+    product_raw(K,P,F,C,S,H,B,MG,M_MIN,M_MAX,PCOUNT,PUNIT,_,NAME).
+
+all_products(PRODUCTS):-
+    findall(X,product(_,_,_,X),PRODUCTS).
+
+milligrams_to_grams(MGRAM,GRAM):-GRAM is MGRAM//1000.
+calories_to_kilocalories(CAL,KCAL):-KCAL is CAL//1000.
+
+product_price(NAME,MASS,PRICE):-
+    product(_,_,price(PCNT,PUNT),NAME),
+    PRICE is (PCNT*MASS)//(100*PUNT).
+
+lists_mul([],[],[]).
+lists_mul([H1|T1],[H2|T2],[H|T]):-H#=H1*H2,lists_mul(T1,T2,T).
+
+nutrition_weighted_sum(NN,N1,N2,M):-
+    NN=nutrition(calories(KK),protein(PP),fat(FF),carbo(CC),sodium(SS),chol(HH),fiber(BB)),
+    N1=nutrition(calories(K1),protein(P1),fat(F1),carbo(C1),sodium(S1),chol(H1),fiber(B1)),
+    N2=nutrition(calories(K2),protein(P2),fat(F2),carbo(C2),sodium(S2),chol(H2),fiber(B2)),
+    KK#=K1+(K2*M),
+    PP#=P1+(P2*M),
+    FF#=F1+(F2*M),
+    CC#=C1+(C2*M),
+    SS#=S1+(S2*M),
+    HH#=H1+(H2*M),
+    BB#=B1+(B2*M).
+
+nutrition_list_weighted_sum([],[],N):-N=nutrition(calories(0),protein(0),fat(0),carbo(0),sodium(0),chol(0),fiber(0)).
+nutrition_list_weighted_sum([NAME_H|NAME_T],[MASS_H|MASS_T],N):-
+    nutrition_list_weighted_sum(NAME_T,MASS_T,N1),
+    product(N2,_,_,NAME_H),
+    nutrition_weighted_sum(N,N1,N2,MASS_H).
+
+nutrition_normalize(N0,NN):-
+    N0=nutrition(calories(K0),protein(P0),fat(F0),carbo(C0),sodium(S0),chol(H0),fiber(B0)),
+    NN=nutrition(calories(KK),protein(PP),fat(FF),carbo(CC),sodium(SS),chol(HH),fiber(BB)),
+    nutrition_per_mass(G),
+    K0 is KK//G,
+    P0 is PP//G,
+    F0 is FF//G,
+    C0 is CC//G,
+    S0 is SS//G,
+    H0 is HH//G,
+    B0 is BB//G.
+
+%constraints
+
+products_nutrition_constraints_satisfy(PRODUCTS,MASSES,NN):-
+    nutrition_list_weighted_sum(PRODUCTS,MASSES,NN),
+    NN=nutrition(calories(K),protein(P),fat(F),carbo(C),sodium(S),chol(H),fiber(B)),
+    goal(products_nutrition_minmax(
+        calories(MIN_K,MAX_K),
+        protein(MIN_P,MAX_P),
+        fat(MIN_F,MAX_F),
+        carbo(MIN_C,MAX_C),
+        sodium(MIN_S,MAX_S),
+        chol(MIN_H,MAX_H),
+        fiber(MIN_B,MAX_B))),
+    nutrition_per_mass(G),
+    K#>=MIN_K*G,K#=<MAX_K*G,
+    P#>=MIN_P*G,P#=<MAX_P*G,
+    F#>=MIN_F*G,F#=<MAX_F*G,
+    C#>=MIN_C*G,C#=<MAX_C*G,
+    S#>=MIN_S*G,S#=<MAX_S*G,
+    H#>=MIN_H*G,H#=<MAX_H*G,
+    B#>=MIN_B*G,B#=<MAX_B*G.
+
+single_product_mass_constraint_satisfy([],[]).
+single_product_mass_constraint_satisfy([PH|PT],[MH|MT]):-
+    product(_,mass(granularity(G),min(MIN),max(MAX)),_,PH),
+    MH#=G*_,
+    MH#=<MAX,
+    MH#>=MIN,
+    single_product_mass_constraint_satisfy(PT,MT).
+
+products_count_constraints_satisfy(MASSES):-
+    goal(products_count_minmax(COUNT_MIN,COUNT_MAX)),
+    length(MASSES,L),
+    length(MASK,L),
+    MASK::0..1,
+    MAX_ZEROES is L-COUNT_MIN,
+    atmost(COUNT_MAX,MASK,1),
+    atmost(MAX_ZEROES,MASSES,0),
+    lists_mul(MASSES,MASK,MASKED_MASSES),
+    MASSES=MASKED_MASSES.
+
+products_mass_constraints_satisfy(MASSES):-
+    goal(products_mass_minmax(MASS_MIN,MASS_MAX)),
+    sumlist(MASSES,MASS),
+    MASS#=<MASS_MAX,
+    MASS#>=MASS_MIN.
+
+%solver
+
+diet(PRODUCTS,MASSES,NUTRITION):-
+    length(PRODUCTS,L),
+    length(MASSES,L),
+    products_mass_constraints_satisfy(MASSES),
+    products_count_constraints_satisfy(MASSES),
+    single_product_mass_constraint_satisfy(PRODUCTS,MASSES),
+    products_nutrition_constraints_satisfy(PRODUCTS,MASSES,NN),
+    labeling(MASSES),
+    nutrition_normalize(NUTRITION,NN).
+
+%output
+
+total_price([],[],TOTAL):-TOTAL is 0.
+total_price([PH|PT],[MH|MT],TOTAL):-
+    product_price(PH,MH,PRC),
+    total_price(PT,MT,TT),
+    TOTAL is TT + PRC.
+
+write_products_masses([],[]).
+write_products_masses([PH|PT],[MH|MT]):-
+    MH>0,
+    milligrams_to_grams(MH,MASS),
+    product_price(PH,MH,PRC),
+    write(PH),write(" "),write(MASS),write(" g ("),write(PRC),write(" rub)"),writeln(""),
+    write_products_masses(PT,MT).
+write_products_masses([_|PT],[MH|MT]):-
+    MH=<0,
+    write_products_masses(PT,MT).
+
+write_total_mass(MASSES):-
+    sumlist(MASSES,M),
+    milligrams_to_grams(M,MASS),
+    write("mass         "),write(MASS),write(" g"),writeln("").
+
+write_total_price(PRODUCTS,MASSES):-
+    total_price(PRODUCTS,MASSES,PRICE),
+    write("price        "),write(PRICE),write(" rub"),writeln("").
+
+write_nutrition(N):-
+    N=nutrition(calories(KK),protein(PP),fat(FF),carbo(CC),sodium(SS),chol(HH),fiber(BB)),
+    calories_to_kilocalories(KK,K),
+    milligrams_to_grams(PP,P),
+    milligrams_to_grams(FF,F),
+    milligrams_to_grams(CC,C),
+    milligrams_to_grams(SS,S),
+    milligrams_to_grams(HH,H),
+    milligrams_to_grams(BB,B),
+    write("calories     "),write(K),write(" kcal"),writeln(""),
+    write("protein      "),write(P),write(" g"),writeln(""),
+    write("fat          "),write(F),write(" g"),writeln(""),
+    write("carbohydrate "),write(C),write(" g"),writeln(""),
+    write("sodium       "),write(S),write(" mg"),writeln(""),
+    write("cholesterol  "),write(H),write(" mg"),writeln(""),
+    write("fiber        "),write(B),write(" g"),writeln("").
+
+write_report(PRODUCTS,MASSES,NUTRITION):-
+    write_products_masses(PRODUCTS,MASSES),
+    writeln(""),
+    write_total_mass(MASSES),
+    write_total_price(PRODUCTS,MASSES),
+    write_nutrition(NUTRITION),
+    writeln("------------------------------------------------------------").
+
+%application
+
+top:-
+    all_products(PRODUCTS),
+    diet(PRODUCTS,MASSES,NUTRITION),
+    write_report(PRODUCTS,MASSES,NUTRITION),
+    fail.

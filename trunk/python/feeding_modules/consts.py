@@ -1,0 +1,52 @@
+# -*- coding: utf-8 -*-
+
+class consts :
+    delimiter = '------------------------------'
+    departments_without_dishes = u'= Незадействованные ингредиенты, для которых указан отдел ='
+    dishes_by_weekday_file_name = 'DishesByWeekday'
+    dishes_for_a_week_header = u'= Блюда на неделю ='
+    dishes_for_a_week_table_title = u'|| *название блюда* || *количество* ||'
+    dishes_prices_file_name = 'DishesPrices'
+    dishes_prices_summary = u'#summary цены на блюда'
+    dishes_prices_table_title = u'|| *название ингредиента* || *количество* || *минимальная цена* || *максимальная цена* ||'
+    dishes_without_ingredients = u'= Блюда, для которых не указаны ингредиенты ='
+    dot_wiki = '.wiki'
+    header_regexp = r'^\s*=\s*(.+?)\s*=\s*$'
+    ingredient_amount_list_regexp = r'^\s*\*\s+(.+?)\s+(\d+(?:\.\d+)?)\s+(.+?)\s*$'
+    ingredient_price_list_regexp = r'^\s*\*\s+(.+?)\s+(\d+(?:\.\d+)?)\s+(.+?)\s+(\d+)\s+(.+?)(?:\s+(\d+)\s+(.+?))?\s*$'
+    ingredients_for_a_week_header = u'= Ингредиенты на неделю ='
+    ingredients_for_a_week_table_title = u'|| *название ингредиента* || *количество* || *минимальная цена* || *максимальная цена* ||'
+    ingredients_by_department_file_name = 'IngredientsByDepartment'
+    ingredients_by_dish_file_name = 'IngredientsByDishes'
+    ingredients_prices_by_shop_file_name = 'IngredientsPricesByShop'
+    ingredients_without_prices = u'= Ингредиенты, для которых не указаны цены ='
+    invalid_units_in_dish = u'несовместимые единицы измерения в блюде'
+    list_regexp = r'^\s*\*\s+(.+)\s*$'
+    new_line = '\n'
+    no_department = u'Отдел не указан'
+    no_price = u'нет цены'
+    open_file_for_read = 'rb'
+    open_file_for_write = 'wb'
+    price_from = u'от'
+    price_to = u'до'
+    prices_without_dishes = u'= Незадействованные ингредиенты, для которых указаны цены ='
+    total_price = u'Общая сумма:'
+    units_conversion = \
+        { u'кг' : { u'г' : 1000 , u'мг' : 1000000 }
+        , u'г' : { u'мг' : 1000 }
+        , u'л' : { u'мл' : 1000 }
+        , u'руб' : { u'коп' : 100 }
+        }
+    utf8 = 'utf-8'
+    weekly_ingredients_prices_file_name = 'WeeklyIngredientsPrices'
+    weekly_ingredients_prices_summary = u'#summary цены на ингредиенты на всю неделю'
+    whitespace = ' '
+    wiki_bold = '*'
+    wiki_header_format = '= %s ='
+    wiki_labels = '#labels Featured'
+    wiki_list = '  * '
+    wiki_path = '../wiki/'
+    wiki_side_bar_navigation = '#sidebar SideBarNavigation'
+    wiki_subheader = '=='
+    wiki_table = '||'
+    wiki_table_of_contents = '<wiki:toc max_depth="2"/>'

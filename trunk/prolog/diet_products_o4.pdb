@@ -1,0 +1,29 @@
+%language: eclipse prolog
+
+:-module(diet_products).
+:-export(goal/1).
+:-export(nutrition_per_mass/1).
+:-export(product_raw/14).
+
+goal(products_count_minmax(0,100)).
+goal(products_mass_minmax(0,10000000)).
+
+goal(products_nutrition_minmax(
+    calories(0,2500000),
+    protein(90000,120000),
+    fat(80000,90000),
+    carbo(300000,320000),
+    sodium(0,2300000),
+    chol(0,300000),
+    fiber(33000,38000))).
+
+nutrition_per_mass(100000).
+
+%           |energy| prot|  fat |carbo| sodium| cholesterol| fiber| unit |  min  |   max  | price|  punit |     bar code    |        title
+ product_raw(408000,81600,  3400,10200, 200000,      102000,     0,  5000,      0,   35000,296000, 2270000,               "","whey protein <optimum nutrition>").
+ product_raw(105000,23500,   600,    0, 300000,           0,     0,  5000, 130000,  130000,  7020,  130000,               "","tuna in brine (drained) <fortuna tuna>").
+ product_raw(900000,    0,100000,    0,      0,           0,     0,  5000,      0,   55000, 18770,  500000,               "","flux oil").
+ product_raw(220000,15000,  3500,33000,   3000,           0, 43000,  5000,      0,   80000,  4390,  200000,               "","rye bran <dietmarka>").
+ product_raw(330000,  100,   100,79000,  10000,           0,     0,  5000,      0,  305000,  2650,  200000,               "","potato starch <mr preston>").
+ product_raw(475000,25600, 25000,39400, 371000,       97000,     0,  5000,      0,   80000, 13020,  420000,               "","dry milk <northern milk>").
+%           |energy| prot| fat  |carbo| sodium| cholesterol| fiber| unit |  min  |   max  | price|  punit |     bar code    |        title

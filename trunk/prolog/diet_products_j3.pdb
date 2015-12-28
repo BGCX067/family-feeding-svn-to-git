@@ -1,0 +1,31 @@
+%language: eclipse prolog
+
+:-module(diet_products).
+:-export(goal/1).
+:-export(nutrition_per_mass/1).
+:-export(product_raw/14).
+
+goal(products_count_minmax(0,100)).
+goal(products_mass_minmax(0,10000000)).
+
+goal(products_nutrition_minmax(
+    calories(0,1600000),
+    protein(60000,80000),
+    fat(55000,65000),
+    carbo(190000,210000),
+    sodium(0,2300000),
+    chol(0,300000),
+    fiber(25000,35000))).
+
+nutrition_per_mass(100000).
+
+%           |energy| prot|  fat | carbo| sodium| cholesterol| fiber| unit |  min  |   max  | price|  punit |     bar code    |        title
+ product_raw(160000, 2700, 15000,  3600,  80000,       52000,     0,  5000, 150000,  150000,  4190,  350000,               "","sour cream 15% <prostokvashino>").
+ product_raw(749000, 1000, 82400,   800,      0,      214000,     0,  5000,  30000,   30000, 21080,  500000,               "","butter unsalted 82% <lurpak>").
+ product_raw(255000,23200, 11600, 51200,  23000,           0, 30000,  5000,  20000,   20000, 25300,  340000,"7 33739 06672 5","cocoa powder <now healthy foods>").
+ product_raw(399000,    0,     0,100000,      0,           0,     0,  5000,   5000,    5000,  2720,  250000,               "","sugar granulated <kuskov>").
+ product_raw(355000,12600,  3100, 60700,   1000,           0, 10000,  5000, 200000,  200000,  6090,  800000,               "","buckwheat <uvelka>").
+ product_raw( 22000, 3000,     0,  3000,   5000,           0,  1000,  5000, 500000,  500000, 15300, 1000000,               "","champignons <gribnaya polyana>").
+ product_raw( 40000, 1000,     0,  9000,   4000,           0,  2000,  5000, 200000,  200000,  3990, 2000000,               "","onions").
+ product_raw( 35000, 2800,   500,  4900,      0,       10000,     0,  5000, 315000,  315000,  4220,  950000,               "","milk 0.5% <country hut> 950 ml").
+%           |energy| prot|  fat | carbo| sodium| cholesterol| fiber| unit |  min  |   max  | price|  punit |     bar code    |        title

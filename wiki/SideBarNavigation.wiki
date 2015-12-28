@@ -1,0 +1,10 @@
+#summary боковая панель навигации
+
+= Быстрый переход =
+
+  * [DishesByWeekday Блюда по дням недели]
+  * [IngredientsByDishes Ингредиенты в блюдах]
+  * [IngredientsByDepartment Ингредиенты по отделам]
+  * [IngredientsPricesByShop Цены на ингредиенты в магазинах]
+  * [DishesPrices Цены на блюда]
+  * [WeeklyIngredientsPrices Цены на ингредиенты на всю неделю]

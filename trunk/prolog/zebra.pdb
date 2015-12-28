@@ -1,0 +1,75 @@
+is_first(X, [X|_]).
+in_the_middle(X, [_, _, X, _, _]).
+left_to_right(X, Y, [X, Y, _, _, _]).
+left_to_right(X, Y, [_, X, Y, _, _]).
+left_to_right(X, Y, [_, _, X, Y, _]).
+left_to_right(X, Y, [_, _, _, X, Y]).
+is_next_to(X, Y, [X, Y, _, _, _]).
+is_next_to(X, Y, [Y, X, _, _, _]).
+is_next_to(X, Y, [_, X, Y, _, _]).
+is_next_to(X, Y, [_, Y, X, _, _]).
+is_next_to(X, Y, [_, _, X, Y, _]).
+is_next_to(X, Y, [_, _, Y, X, _]).
+is_next_to(X, Y, [_, _, _, X, Y]).
+is_next_to(X, Y, [_, _, _, Y, X]).
+
+answer(WaterDrinker, ZebraOwner, Houses) :-
+
+% There are five Houses.
+    length(Houses, 5),
+
+% The Englishman lives in the red house.
+    member(house(englishman, _, _, _, red), Houses),
+
+% The Spaniard owns the dog.
+    member(house(spaniard, _, dog, _, _), Houses),
+
+% The Ukrainian drinks tea.
+    member(house(ukranian, tea, _, _, _), Houses),
+
+% The green house is immediately to the right of the ivory house.
+    left_to_right(house(_, _, _, _, ivory), house(_, _, _, _, green), Houses),
+    member(house(_, _, _, _, ivory), Houses),
+    member(house(_, _, _, _, green), Houses),
+
+% Coffee is drunk in the green house.
+    member(house(_, coffee, _, _, green), Houses),
+
+% The Old Gold smoker owns snails.
+    member(house(_, _, snails, old_gold, _), Houses),
+
+% Kools are smoked in the yellow house.
+    member(house(_, _, _, kools, yellow), Houses),
+
+% Milk is drunk in the middle house.
+    member(house(_, milk, _, _, _), Houses),
+    in_the_middle(house(_, milk, _, _, _), Houses),
+
+% The Norwegian lives in the first house.
+    member(house(norwegian, _, _, _, _), Houses),
+    is_first(house(norwegian, _, _, _, _), Houses),
+
+% The man who smokes Chesterfields lives in the house next to the man with the fox.
+    member(house(_, _, _, chesterfield, _), Houses),
+    member(house(_, _, fox, _, _), Houses),
+    is_next_to(house(_, _, _, chesterfield, _), house(_, _, fox, _, _), Houses),
+
+% Kools are smoked in the house next to the house where the horse is kept.
+    member(house(_, _, _, kools, _), Houses),
+    member(house(_, _, horse, _, _), Houses),
+    is_next_to(house(_, _, _, kools, _), house(_, _, horse, _, _), Houses),
+
+% The Lucky Strike smoker drinks orange juice.
+    member(house(_, orange_juice, _, lucky_strike, _), Houses),
+
+% The Japanese smokes Parliaments.
+    member(house(japanese, _, _, parliaments, _), Houses),
+
+% The Norwegian lives next to the blue house.
+    member(house(norwegian, _, _, _, _), Houses),
+    member(house(_, _, _, _, blue), Houses),
+    is_next_to(house(norwegian, _, _, _, _), house(_, _, _, _, blue), Houses),
+
+% Now, who drinks water? Who owns the zebra?
+    member(house(WaterDrinker, water, _, _, _), Houses),
+    member(house(ZebraOwner, _, zebra, _, _), Houses).

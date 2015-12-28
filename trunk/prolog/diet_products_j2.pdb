@@ -1,0 +1,37 @@
+%language: eclipse prolog
+
+:-module(diet_products).
+:-export(goal/1).
+:-export(nutrition_per_mass/1).
+:-export(product_raw/14).
+
+goal(products_count_minmax(0,100)).
+goal(products_mass_minmax(0,10000000)).
+
+goal(products_nutrition_minmax(
+    calories(0,1600000),
+    protein(60000,80000),
+    fat(55000,65000),
+    carbo(190000,210000),
+    sodium(0,2300000),
+    chol(0,300000),
+    fiber(34000,36000))).
+
+nutrition_per_mass(100000).
+
+%           |energy| prot|  fat |carbo| sodium| cholesterol| fiber| unit |  min  |   max  | price|  punit |     bar code    |        title
+%product_raw(105000,12700,  5000, 2400,      0,           0,     0,130000, 130000,  130000,  7370,  350000,               "","tvorog grained <prostokvashino>").
+%product_raw(431000,38000, 29000, 4000,1529000,       88000,     0,  5000,  20000,   20000, 40980,  200000,               "","parmigiano reggiano cheese").
+%product_raw(642100,18900, 55300,17200,   1000,           0, 12000,  5000,  40000,   40000, 12210,  200000,"4 600294 001309","roasted almond <nature gifts>").
+%product_raw(900000,    0,100000,    0,      0,           0,     0,  5000,  10000,   10000, 53090, 1000000,               "","olive oil").
+%product_raw(220000,15000,  3500,33000,   3000,           0, 43000,  5000,  25000,   25000,  4390,  200000,               "","rye bran <dietmarka>").
+%product_raw(346000,13000,  1500,70200, 700000,           0,  4000,  5000, 240000,  240000, 14560,  500000,               "","pasta <de cecco>").
+%product_raw( 59000, 2900,  3200, 4700,      0,       10000,     0,  5000, 240000,  240000,  3900,  950000,               "","milk 3.2% <country hut> 950 ml").
+ product_raw(105000,12700,  5000, 2400,      0,           0,     0,130000, 130000,  130000,  7370,  350000,               "","tvorog grained <prostokvashino>").
+ product_raw(431000,38000, 29000, 4000,1529000,       88000,     0,  1000,  20000,   20000, 40980,  200000,               "","parmigiano reggiano cheese").
+ product_raw(642100,18900, 55300,17200,   1000,           0, 12000,  1000,  45000,   45000, 12210,  200000,"4 600294 001309","roasted almond <nature gifts>").
+ product_raw(900000,    0,100000,    0,      0,           0,     0,  1000,   1000,   10000, 53090, 1000000,               "","olive oil").
+ product_raw(220000,15000,  3500,33000,   3000,           0, 43000,  1000,  45000,   45000,  4390,  200000,               "","rye bran <dietmarka>").
+ product_raw(346000,13000,  1500,70200, 700000,           0,  4000,  1000, 240000,  240000, 14560,  500000,               "","pasta <de cecco>").
+ product_raw( 59000, 2900,  3200, 4700,      0,       10000,     0,  1000, 130000,  130000,  3900,  950000,               "","milk 3.2% <country hut> 950 ml").
+%           |energy| prot|  fat |carbo| sodium| cholesterol| fiber| unit |  min  |   max  | price|  punit |     bar code    |        title

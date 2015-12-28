@@ -1,0 +1,228 @@
+<xml>
+    <!-- конфиг сервиса -->
+    <config>
+        <!-- система стейт машин, управляющая всем сервисом -->
+        <system>script1</system>
+        <instance_mobs>
+            <instance>
+                <type>instance1</type>
+                <mobs>
+                    <spawn_radius>10</spawn_radius>
+                    <respawn_time>90</respawn_time>
+                    <kill_body_time_loot>180</kill_body_time_loot>
+                    <kill_body_time_empty>45</kill_body_time_empty>
+                    <mob>
+                        <type>mob1</type>
+                        <system>behaviour1</system>
+                        <coord_x>1</coord_x>
+                        <coord_y>2</coord_y>
+                    </mob>
+                </mobs>
+            </instance>
+        </instance_mobs>
+        <world_mobs>
+            <spawn_radius>5</spawn_radius>
+            <respawn_time>90</respawn_time>
+            <kill_body_time_loot>180</kill_body_time_loot>
+            <kill_body_time_empty>45</kill_body_time_empty>
+            <mob>
+                <type>mob2</type>
+                <system>behaviour2</system>
+                <coord_x>10</coord_x>
+                <coord_y>20</coord_y>
+            </mob>
+        </world_mobs>
+    </config>
+    <!-- Каждая система стейт машин привязана к ноде конфига. -->
+    <!-- Создать систему стейт машин можно только вызовом spawn. -->
+    <!-- При вызове действия spawn в качестве аргумента ему задается xpath к ноде конфига с именем системы. Родитель этой ноды будет привязан к системе. -->
+    <!-- При получении системой стейт машин ивентов от сервера, некоторые параметры доступны для подстановки в xpath: -->
+    <!--     %auto_hero_id% - ид игрока/бота/непися -->
+    <!--     %auto_instance_id% - ид инстанса -->
+    <!--     %auto_instance_type% - тип инстанса -->
+    <system>
+        <name>script1</name>
+        <fsm>
+            <name>main</name>
+            <state>
+                <name>initial</name>
+                <transition>
+                    <to_state>active</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>active</name>
+                <on_entry>
+                    <!-- создает систему стейт машин для каждой ноды -->
+                    <spawn>
+                        <system><xpath>world_mobs/mob/system</xpath></system>
+                    </spawn>
+                </on_entry>
+                <on_input>
+                    <inputs> <instance_created/> </inputs>
+                    <actions>
+                        <spawn>
+                            <system><xpath>instance_mobs/instance[type=%auto_instance_type%]/mobs/mob/system</xpath></system>
+                            <params>
+                                <instance_id><param>auto_instance_id</param></instance_id>
+                            </params>
+                        </spawn>
+                    </actions>
+                </on_input>
+            </state>
+        </fsm>
+    </system>
+    <system>
+        <name>behaviour1</name>
+        <params>
+            <mob_uid/> <!-- уникальный временный id моба на этапе генерации -->
+            <mob_id/> <!-- настоящий id моба, созданный сервером -->
+            <instance_id/> <!-- id инстанса, в котором живет моб -->
+            <timer_kill_body_loot/> <!-- таймер, используемый при удалении трупа с лутом -->
+            <timer_kill_body_empty/> <!-- таймер, используемый при удалении трупа без лута -->
+            <timer_respawn/> <!-- таймер, используемый при воскрешении моба -->
+        </params>
+        <fsm>
+            <name>main</name>
+            <state>
+                <name>initial</name>
+                <on_exit>
+                    <create_uid_param>mob_uid</create_uid_param>
+                </on_exit>
+                <transition>
+                    <to_state>spawn</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>spawn</name>
+                <on_entry>
+                    <!-- создаст серверного бота и привяжет данную стейт машину к нему -->
+                    <add_server_bot_request>
+                        <type><xpath>type<xpath></type>
+                        <coord_x><xpath>coord_x<xpath></coord_x>
+                        <coord_y><xpath>coord_y<xpath></coord_y>
+                        <instance_id><param>instance_id</param></instance_id>
+                        <uid><param>mob_uid</param></uid>
+                        <radius><xpath>parent::*/spawn_radius</xpath></radius>
+                    </add_server_bot_request>
+                </on_entry>
+                <on_input>
+                    <inputs>
+                        <add_server_bot_reply><uid><param>mob_uid</param></uid></add_server_bot_reply>
+                    </inputs>
+                    <actions>
+                        <!-- сохраняет значение в заданный параметр системы стейт машин -->
+                        <set_params><mob_id><param>auto_hero_id</param></mob_id></set_params>
+                    </actions>
+                </on_input>
+                <transition>
+                    <to_state>active</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>active</name>
+                <transition>
+                    <inputs>
+                        <death><id><param>mob_id</param></id></death>
+                        <have_loot><id><param>mob_id</param></id></have_loot>
+                    </inputs>
+                    <to_state>dead_with_loot</to_state>
+                </transition>
+                <transition>
+                    <inputs>
+                        <death><id><param>mob_id</param></id></death>
+                        <have_no_loot><id><param>mob_id</param></id></have_no_loot>
+                    </inputs>
+                    <to_state>dead_without_loot</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>dead_with_loot</name>
+                <on_entry>
+                    <timer_start>
+                        <name>timer_kill_body_loot</name>
+                        <time><xpath>parent::*/kill_body_time_loot</xpath></time>
+                    </timer_start>
+                </on_entry>
+                <transition>
+                    <inputs> <timer_done>timer_kill_body_loot</timer_done> </inputs>
+                    <to_state>finished</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>dead_without_loot</name>
+                <on_entry>
+                    <timer_start>
+                        <name>timer_kill_body_empty</name>
+                        <time><xpath>parent::*/kill_body_time_empty</xpath></time>
+                    </timer_start>
+                </on_entry>
+                <transition>
+                    <inputs> <timer_done>timer_kill_body_empty</timer_done> </inputs>
+                    <to_state>finished</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>finished</name>
+                <on_entry>
+                    <!-- удаляет бота с сервера -->
+                    <delete_server_bot>
+                        <id><param>mob_id</param></id>
+                    </delete_server_bot>
+                </on_entry>
+            </state>
+        </fsm>
+        <fsm>
+            <name>respawner</name>
+            <state>
+                <name>initial</name>
+                <transition>
+                    <inputs> <death><id><param>mob_id</param></id></death> </inputs>
+                    <to_state>respawn</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>respawn</name>
+                <on_entry>
+                    <timer_start>
+                        <name>timer_respawn</name>
+                        <time><xpath>parent::*/kill_body_time_empty</xpath></time>
+                    </timer_start>
+                </on_entry>
+                <transition>
+                    <inputs> <timer_done>timer_respawn</timer_done> </inputs>
+                    <to_state>finished</to_state>
+                </transition>
+                <on_exit>
+                    <!-- создает систему стейт машин нового бота -->
+                    <spawn>
+                        <system><xpath>system</xpath></system>
+                        <params>
+                            <instance_id><param>instance_id</param></instance_id>
+                        </params>
+                    </spawn>
+                </on_exit>
+            </state>
+            <state>
+                <name>finished</name>
+            </state>
+        </fsm>
+        <fsm>
+            <name>destroyer</name>
+            <state>
+                <name>initial</name>
+                <on_input>
+                    <inputs>
+                        <!-- проверки, что стейт машины находятся в указанном состоянии -->
+                        <check> <fsm>main</fsm> <in_state>finished</in_state> </check>
+                        <check> <fsm>respawner</fsm> <in_state>finished</in_state> </check>
+                    </inputs>
+                    <actions>
+                        <!-- удаляет текущую систему стейт машин -->
+                        <destroy/>
+                    </actions>
+                </on_input>
+            </state>
+        </fsm>
+    </system>
+</xml>

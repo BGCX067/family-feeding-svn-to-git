@@ -1,0 +1,946 @@
+<xml>
+    <config>
+        <auth>
+            <facebook>
+                <use>false</use>
+                <secret_key>98765</secret_key>
+            </facebook>
+            <vkontakte>
+                <use>true</use>
+                <secret_key>12345</secret_key>
+            </vkontakte>
+            <web>
+                <checksum>1111</checksum>
+            </web>
+            <payment>
+                <checksum>2222</checksum>
+            </payment>
+        </auth>
+        <initial_city>
+            <energy>20</energy>
+            <quests>
+                <quest>quest1</quest>
+            </quests>
+        </initial_city>
+        <energy>
+            <bonus_click>1</bonus_click>
+        </energy>
+        <objects>
+            <object>
+                <type>bonus1</type>
+                <width>2</width>
+                <length>2</length>
+                <bmodel>
+                    <type>bonus</type>
+                    <spawn_territory>territory1</spawn_territory>
+                    <spawn_delay>10</spawn_delay>
+                    <spawn_disabled>true</spawn_disabled>
+                    <max_bonus_objects>5</max_bonus_objects>
+                    <bonus_clicks>10</bonus_clicks>
+                </bmodel>
+            </object>
+            <object>
+                <type>bonus2</type>
+                <width>5</width>
+                <length>5</length>
+                <bmodel>
+                    <type>bonus</type>
+                    <spawn_territory>territory2</spawn_territory>
+                    <spawn_delay>11</spawn_delay>
+                    <max_bonus_objects>6</max_bonus_objects>
+                    <bonus_clicks>10</bonus_clicks>
+                    <on_bonus_click>
+                        <command>
+                            <type>give_reward</type>
+                            <money>100</money>
+                        </command>
+                    </on_bonus_click>
+                </bmodel>
+            </object>
+        </objects>
+        <quests>
+            <quest>
+                <type>quest1</type>
+                <time_expire>10</time_expire>
+                <time_delay>10</time_delay>
+                <on_complete>
+                    <command>
+                        <type>give_reward</type>
+                        <money>100</money>
+                        <energy>10</energy>
+                    </command>
+                    <command>
+                        <type>activate_quest</type>
+                        <quest>quest2</quest>
+                    </command>
+                </on_complete>
+                <on_expire>
+                    <command>
+                        <type>activate_quest</type>
+                        <quest>quest3</quest>
+                    </command>
+                </on_expire>
+                <tasks>
+                    <task>
+                        <task_type>collect_bonus</task_type>
+                        <bonus>bonus1</bonus>
+                        <count>10</count>
+                        <skip_price>5</skip_price>
+                    </task>
+                    <task>
+                        <task_type>collect_bonus</task_type>
+                        <bonus>bonus2</bonus>
+                        <count>10</count>
+                    </task>
+                    <task>
+                        <task_type>spend_energy</task_type>
+                        <count>5</count>
+                    </task>
+                </tasks>
+            </quest>
+            <quest>
+                <type>quest2</type>
+            </quest>
+            <quest>
+                <type>quest3</type>
+            </quest>
+        </quests>
+    </config>
+
+    <!-- Тезисы: -->
+    <!-- Каждая система работает по модели VFSM. -->
+    <!-- Если система посылает сообщение другой системе, то оно кладется в очередь входящих сообщения для указанной системы. -->
+    <!-- Если система посылает сообщение несуществующей системе, то оно также кладется в очередь входящих сообщений несозданной системы. -->
+    <!-- Если сообщение, отосланное системе, совпадает с последним сообщением в очереди входящих сообщений, то такое сообщение удаляется. -->
+    <!-- Если система создает другую систему, то это делается через очередь создания систем, общую для всего приложения. -->
+    <!-- Состояние приложения можно частично или полностью реплицировать на клиент. -->
+    <!-- При репликации учитываются создание, удаление систем, а также изменение их параметров. -->
+    <!-- С базой данных синхронизируется полное состояние всех систем. -->
+    <!-- Кеш приложения - фактически все загруженные на данный момент системы. -->
+    <!-- Чтобы играющие игроки могли продолжать играть, удалять стейты и системы нельзя. -->
+    <!-- При рефакторинге систем, на месте старых вызовов ставится перенаправление - для играющих игроков. -->
+    <!-- Две версии сервера: медленная, но умеющая грузить конфиги на лету и быстрая, но с генереным по конфигам кодом. -->
+    <!-- Тестировать обе версии сервера можно подсовывая сообщения клиента и проверяя присланную репликацию. -->
+    <!-- Если все параметры, участвующие в формировании xpath, также берутся из xpath, то такие выражения можно посчитать один раз при компиляции. -->
+
+    <!-- Алгоритм выполнения: -->
+    <!-- 1. Создается система application. -->
+    <!-- 2. Запускается система application. -->
+    <!-- 3. При получении сообщения от клиента оно ставится в очередь в систему application. -->
+    <!-- 4. Каждая система достает первое сообщение из своей очереди и обрабатывает его. -->
+    <!-- 5. Создаются системы из очереди создания. -->
+    <!-- 6. Каждая созданная система запускается. -->
+    <!-- 7. Если есть входящие сообщения хотя бы для одной системы, перейти к шагу 4. -->
+    <!-- 8. Все изменения в системах с момента получения сообщения от клиента отправляются обратно клиенту в репликации. -->
+    <!-- 9. Все изменения в системах сохраняются с базу данных. -->
+
+    <!-- Список систем и их параметров, подлежащих репликации. -->
+    <replicate>
+        <system>
+            <name>authorize</name>
+            <params>
+                <user/>
+                <auth_client/>
+            </params>
+        </system>
+        <system>
+            <name>bmodel_bonus</name>
+            <params>
+                <user/>
+                <object_type/>
+                <coord_x/>
+                <coord_y/>
+                <clicks_left/>
+            </params>
+        </system>
+        <system>
+            <name>city</name>
+            <params>
+                <user/>
+                <energy/>
+            </params>
+        </system>
+    </replicate>
+
+    <!-- Приложение. При старте сервера запускается эта система. -->
+    <system>
+        <name>application</name>
+        <fsm>
+            <name>main</name>
+            <state>
+                <name>initial</name>
+                <transition>
+                    <to_state>listening</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>listening</name>
+                <on_input>
+                    <!-- Сообщения, принятые системой, выстраиваются в очередь и обрабатываются по одному за раз. -->
+                    <!-- За один цикл выполнения vfsm не может быть несколько текущих входящих сообщений. -->
+                    <inputs> <message><name>auth</name></message> </inputs>
+                    <!-- Порядок выполнения действий в блоке actions - произвольный -->
+                    <actions>
+                        <!-- Делает, чтобы было ровно по одной системе на каждую комбинацию заданных параметров -->
+                        <!-- Если систем не хватает - создает. -->
+                        <!-- Если системы дублируются - удаляет дубликаты. -->
+                        <keep_unique_systems>
+                            <name>authorizer</name>
+                            <params>
+                                <user> <message_arg>login</message_arg> </user>
+                            </params>
+                        </keep_unique_systems>
+                        <message>
+                            <name>auth</name>
+                            <args>
+                                <checksum> <message_arg>sid</message_arg> </checksum>
+                                <additional> <message_arg>vars</message_arg> </additional>
+                            </args>
+                            <to_system>
+                                <name>authorizer</name>
+                                <params>
+                                    <user> <message_arg>login</message_arg> </user>
+                                </params>
+                            </to_system>
+                        </message>
+                    </actions>
+                </on_input>
+                <transition>
+                    <inputs>
+                        <is_any_message/>
+                        <system_param>
+                            <system>
+                                <name>authorizer</name>
+                                <params>
+                                    <user> <message_arg>login</message_arg> </user>
+                                </params>
+                            </system>
+                            <name>auth_client</name>
+                            <equal_to> <message_arg>auth</message_arg> </equal_to>
+                        </system_param>
+                    </inputs>
+                    <to_state>handle_client</to_state>
+                </transition>
+                <transition>
+                    <inputs>
+                        <is_any_message/>
+                        <are_equal>
+                            <message_arg>auth</message_arg>
+                            <xpath>auth/web/checksum/text()</xpath>
+                        </are_equal>
+                    </inputs>
+                    <to_state>handle_web</to_state>
+                </transition>
+                <transition>
+                    <inputs>
+                        <is_any_message/>
+                        <are_equal>
+                            <message_arg>auth</message_arg>
+                            <xpath>auth/payment/checksum/text()</xpath>
+                        </are_equal>
+                    </inputs>
+                    <to_state>handle_payment</to_state>
+                </transition>
+                <transition>
+                    <inputs> <is_any_message/> </inputs>
+                    <to_state>wrong_auth</to_state>
+                </transition>
+                <on_exit>
+                    <!-- Очищает инпут вида message. Привязка message_arg при этом остается. -->
+                    <reset_message_input/>
+                </on_exit>
+            </state>
+
+            <!-- Обработка ошибки авторизации. -->
+            <state>
+                <name>wrong_auth</name>
+                <on_entry>
+                    <reply_event>
+                        <name>error_wrong_auth</name>
+                    </reply_event>
+                </on_entry>
+                <transition>
+                    <inputs> <no_message/> </inputs>
+                    <to_state>listening</to_state>
+                </transition>
+            </state>
+
+            <!-- Распределитель сообщений от веба. -->
+            <state>
+                <name>handle_web</name>
+                <transition>
+                    <inputs> <no_message/> </inputs>
+                    <to_state>unknown_command</to_state>
+                </transition>
+            </state>
+
+            <!-- Распределитель сообщений от пеймента. -->
+            <state>
+                <name>handle_payment</name>
+                <transition>
+                    <inputs> <no_message/> </inputs>
+                    <to_state>unknown_command</to_state>
+                </transition>
+            </state>
+
+            <!-- Распределитель сообщений от клиента. -->
+            <state>
+                <name>handle_client</name>
+                <transition>
+                    <inputs> <message><name>init_game</name></message> </inputs>
+                    <to_state>command_init_game</to_state>
+                </transition>
+                <transition>
+                    <inputs> <message><name>bonus_click</name></message> </inputs>
+                    <to_state>command_bonus_click</to_state>
+                </transition>
+                <transition>
+                    <inputs> <message><name>update_phase</name></message> </inputs>
+                    <to_state>command_update_phase</to_state>
+                </transition>
+                <transition>
+                    <inputs> <no_message/> </inputs>
+                    <to_state>unknown_command</to_state>
+                </transition>
+            </state>
+
+            <!-- Обработчик неизвестных команд -->
+            <state>
+                <name>unknown_command</name>
+                <on_entry>
+                    <reply_event>
+                        <name>error_unknown_command</name>
+                    </reply_event>
+                </on_entry>
+                <transition>
+                    <inputs> <no_message/> </inputs>
+                    <to_state>listening</to_state>
+                </transition>
+            </state>
+
+            <!-- Обработчик команды init_game -->
+            <state>
+                <name>command_init_game</name>
+                <on_entry>
+                    <keep_unique_systems>
+                        <name>city</name>
+                        <params>
+                            <user><message_arg>login</message_arg></user>
+                        </params>
+                    </keep_unique_systems>
+                    <keep_unique_systems>
+                        <name>bonus_spawner</name>
+                        <params>
+                            <bonus_type> <xpath>objects/object[bmodel/type="bonus"]/type/text()</xpath> </bonus_type>
+                            <user><message_arg>login</message_arg></user>
+                        </params>
+                    </keep_unique_systems>
+                    <!-- Принудительно добавляет в репликацию систему с указанными значениями параметров -->
+                    <force_replicate_system>
+                        <name>bmodel_bonus</name>
+                        <params>
+                            <user><message_arg>login</message_arg></user>
+                        </params>
+                    </force_replicate_system>
+                    <force_replicate_system>
+                        <name>city</name>
+                        <params>
+                            <user><message_arg>login</message_arg></user>
+                        </params>
+                    </force_replicate_system>
+                </on_entry>
+                <transition>
+                    <inputs> <no_message/> </inputs>
+                    <to_state>listening</to_state>
+                </transition>
+            </state>
+
+            <!-- Обработчик команды bonus_click -->
+            <state>
+                <name>command_bonus_click</name>
+                <on_entry>
+                    <keep_unique_systems>
+                        <name>city</name>
+                        <params>
+                            <user><message_arg>login</message_arg></user>
+                        </params>
+                    </keep_unique_systems>
+                    <message>
+                        <name>bonus_click</name>
+                        <to_system>
+                            <name>bmodel_bonus</name>
+                            <params>
+                                <user><message_arg>login</message_arg></user>
+                                <coord_x><message_arg>coord_x</message_arg></coord_x>
+                                <coord_y><message_arg>coord_y</message_arg></coord_y>
+                            </params>
+                        </to_system>
+                    </message>
+                </on_entry>
+                <transition>
+                    <inputs> <no_message/> </inputs>
+                    <to_state>listening</to_state>
+                </transition>
+            </state>
+
+            <!-- Обработчик команды update_phase -->
+            <state>
+                <name>command_update_phase</name>
+                <on_entry>
+                    <keep_unique_systems>
+                        <name>city</name>
+                        <params>
+                            <user><message_arg>login</message_arg></user>
+                        </params>
+                    </keep_unique_systems>
+                    <force_replicate_system>
+                        <name>bmodel_bonus</name>
+                        <params>
+                            <user><message_arg>login</message_arg></user>
+                            <coord_x><message_arg>coord_x</message_arg></coord_x>
+                            <coord_y><message_arg>coord_y</message_arg></coord_y>
+                        </params>
+                    </force_replicate_system>
+                </on_entry>
+                <transition>
+                    <inputs> <no_message/> </inputs>
+                    <to_state>listening</to_state>
+                </transition>
+            </state>
+        </fsm>
+    </system>
+
+    <!-- Система авторизации. -->
+    <system>
+        <name>authorizer</name>
+        <params>
+            <user/>
+            <checksum/>
+            <additional/>
+            <auth_client/>
+        </params>
+        <fsm>
+            <name>main</name>
+            <state>
+                <name>initial</name>
+                <transition>
+                    <to_state>active</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>active</name>
+                <on_input>
+                    <inputs>
+                        <message> <name>auth</name> </message>
+                        <is_true> <xpath>auth/vkontakte/use/text()</xpath> </is_true>
+                        <auth_vkontakte_ok>
+                            <uid> <param>user</param> </uid>
+                            <sid> <message_arg>checksum</message_arg> </sid>
+                            <secret_key> <xpath>auth/vkontakte/secret_key/text()</xpath> </secret_key>
+                        </auth_vkontakte_ok>
+                    </inputs>
+                    <inputs>
+                        <message> <name>auth</name> </message>
+                        <is_true> <xpath>auth/facebook/use/text()</xpath> </is_true>
+                        <auth_facebook_ok>
+                            <uid> <param>user</param> </uid>
+                            <sid> <message_arg>checksum</message_arg> </sid>
+                            <vars> <message_arg>additional</message_arg> </vars>
+                            <secret_key> <xpath>auth/facebook/secret_key/text()</xpath> </secret_key>
+                        </auth_facebook_ok>
+                    </inputs>
+                    <actions>
+                        <param_set>
+                            <name>auth_client</name>
+                            <value> <message_arg>checksum</message_arg> </value>
+                        </param_set>
+                        <force_replicate_param>auth_client</force_replicate_param>
+                    </actions>
+                </on_input>
+            </state>
+        </fsm>
+    </system>
+
+    <!-- Город игрока. Одна система на каждого игрока. -->
+    <system>
+        <name>city</name>
+        <params>
+            <energy/>
+            <user/>
+        </params>
+        <fsm>
+            <name>main</name>
+            <state>
+                <name>initial</name>
+                <on_exit>
+                    <param_set>
+                        <name>energy</name>
+                        <value> <xpath>initial_city/energy/text()</xpath> </value>
+                    </param_set>
+                    <keep_unique_systems>
+                        <name>quest</name>
+                        <params>
+                            <quest_type> <xpath>initial_city/quests/quest/text()</xpath> </quest_type>
+                            <user> <param>user</param> </user>
+                        </params>
+                    </keep_unique_systems>
+                </on_exit>
+                <transition>
+                    <to_state>active</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>active</name>
+                <on_input>
+                    <inputs> <message><name>energy_sub</name></message> </inputs>
+                    <actions>
+                        <param_sub>
+                            <name>energy</name>
+                            <value> <message_arg>value</message_arg> </value>
+                        </param_sub>
+                    </actions>
+                </on_input>
+            </state>
+        </fsm>
+    </system>
+
+    <!-- Квест. Одна система на тип квеста. -->
+    <system>
+        <name>quest</name>
+        <params>
+            <quest_type/>
+            <timer_delay/>
+            <user/>
+        </params>
+        <fsm>
+            <name>main</name>
+            <state>
+                <name>initial</name>
+                <on_exit>
+                    <spawn_systems>
+                        <name>quest_task</name>
+                        <use_params_from> <xpath>quests/quest[type/text()=%quest_type%]/tasks/task</xpath> </use_params_from>
+                        <params>
+                            <quest_type> <param>quest_type</param> </quest_type>
+                            <user> <param>user</param> </user>
+                        </params>
+                    </spawn_systems>
+                </on_exit>
+                <transition>
+                    <to_state>delay</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>delay</name>
+                <on_entry>
+                    <timer_start>
+                        <name>timer_delay</name>
+                        <time> <xpath>quests/quest[type/text()=%quest_type%]/time_delay/text()</xpath> </time>
+                    </timer_start>
+                </on_entry>
+                <on_exit>
+                    <message>
+                        <name>activate</name>
+                        <to_systems>
+                            <name>quest_task</name>
+                            <params>
+                                <user> <param>user</param> </user>
+                                <quest_type> <param>quest_type</param> </quest_type>
+                            </params>
+                        </to_systems>
+                    </message>
+                </on_exit>
+                <transition>
+                    <inputs> <timer_done>timer_delay</timer_done> </inputs>
+                    <inputs> <is_empty> <xpath>quests/quest[type/text()=%quest_type%]/time_delay/text()</xpath> </is_empty> </inputs>
+                    <to_state>active</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>active</name>
+                <on_entry>
+                    <timer_start>
+                        <name>timer_expire</name>
+                        <time> <xpath>quests/quest[type/text()=%quest_type%]/time_expire/text()</xpath> </time>
+                    </timer_start>
+                </on_entry>
+                <transition>
+                    <inputs> <timer_done>timer_expire</timer_done> </inputs>
+                    <to_state>expired</to_state>
+                </transition>
+                <transition>
+                    <inputs>
+                        <count_systems>
+                            <name>quest_task</name>
+                            <params>
+                                <quest_type> <param>quest_type</param> </quest_type>
+                                <user> <param>user</param> </user>
+                            </params>
+                            <fsm>
+                                <name>tracker</name>
+                                <in_state>complete</in_state>
+                            </fsm>
+                            <equal_to> <xpath>count(quests/quest[type/text()=%quest_type%]/tasks/task)</xpath></equal_to>
+                        </count_systems>
+                    </inputs>
+                    <to_state>complete</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>expired</name>
+                <on_entry>
+                    <reply_event>
+                        <name>quest_expired</name>
+                        <args> <quest_type> <param>quest_type</param> </quest_type> </args>
+                    </reply_event>
+                    <spawn_systems>
+                        <name>command</name>
+                        <use_params_from> <xpath>quests/quest[type/text()=%quest_type%]/on_expire/command</xpath> </use_params_from>
+                        <params>
+                            <user> <param>user</param> </user>
+                        </params>
+                    </spawn_systems>
+                </on_entry>
+                <transition>
+                    <to_state>die</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>complete</name>
+                <on_entry>
+                    <reply_event>
+                        <name>quest_complete</name>
+                        <args> <quest_type> <param>quest_type</param> </quest_type> </args>
+                    </reply_event>
+                    <spawn_systems>
+                        <name>command</name>
+                        <use_params_from> <xpath>quests/quest[type/text()=%quest_type%]/on_complete/command</xpath> </use_params_from>
+                        <params>
+                            <user> <param>user</param> </user>
+                        </params>
+                    </spawn_systems>
+                </on_entry>
+                <transition>
+                    <to_state>die</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>die</name>
+                <on_entry>
+                    <kill_system/>
+                </on_entry>
+            </state>
+        </fsm>
+    </system>
+
+    <!-- Квест таск. Одна система на каждый квест таск. -->
+    <system>
+        <name>quest_task</name>
+        <params>
+            <count/>
+            <count_left/>
+            <bonus/>
+            <quest_type/>
+            <skip_price/>
+            <task_type/>
+            <user/>
+        </params>
+        <fsm>
+            <name>main</name>
+            <state>
+                <name>initial</name>
+                <on_exit>
+                    <set_param>
+                        <name>count_left</name>
+                        <value> <param>count</param> </value>
+                    </set_param>
+                </on_exit>
+                <transition>
+                    <inputs> <message><name>activate</name></message> </inputs>
+                    <to_state> <param>task_type</param> </to_state>
+                </transition>
+            </state>
+            <state>
+                <name>collect_bonus</name>
+                <on_input>
+                    <inputs>
+                        <message>
+                            <name>bonus_clicked</name>
+                            <args>
+                                <bonus_type> <param>bonus</param> </bonus_type>
+                            </args>
+                        </message>
+                    </inputs>
+                    <actions>
+                        <param_dec> <name>count_left</name> </param_dec>
+                    </actions>
+                </on_input>
+                <transition>
+                    <inputs> <less_or_equal_to_zero><param>count_left</param></less_or_equal_to_zero> </inputs>
+                    <to_state>complete</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>complete</name>
+            </state>
+        </fsm>
+        <fsm>
+            <name>tracker</name>
+            <state>
+                <name>initial</name>
+                <transition>
+                    <to_state>progress</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>progress</name>
+                <transition>
+                    <inputs> <fsm> <name>main</name> <in_state>complete</in_state> </fsm> </inputs>
+                    <inputs> <fsm> <name>skipper</name> <in_state>skipped</in_state> </fsm> </inputs>
+                    <to_state>complete</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>complete</name>
+            </state>
+        </fsm>
+        <fsm>
+            <name>killer</name>
+            <state>
+                <name>initial</name>
+                <on_input>
+                    <count_systems>
+                        <name>quest</name>
+                        <params>
+                            <quest_type> <param>quest_type</param> </quest_type>
+                            <user> <param>user</param> </user>
+                        </params>
+                        <is_zero/>
+                    </count_systems>
+                    <actions>
+                        <kill_system/>
+                    </actions>
+                </on_input>
+            </state>
+        </fsm>
+    </system>
+
+    <!-- Спавнер бонусов. Одна система на каждый тип бонусных объектов. -->
+    <system>
+        <name>bonus_spawner</name>
+        <params>
+            <bonus_type/>
+            <free_coord_x/>
+            <free_coord_y/>
+            <spawn_timer/>
+            <user/>
+        </params>
+        <fsm>
+            <name>main</name>
+            <state>
+                <name>initial</name>
+                <transition>
+                    <inputs> <is_true><xpath>objects/object[type=%bonus_type%]/bmodel/spawn_disabled/text()</xpath></is_true> </inputs>
+                    <to_state>disabled</to_state>
+                </transition>
+                <transition>
+                    <inputs> <is_not_true><xpath>objects/object[type=%bonus_type%]/bmodel/spawn_disabled/text()</xpath></is_not_true> </inputs>
+                    <to_state>active</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>disabled</name>
+                <transition>
+                    <inputs> <message><name>enable</name></message> </inputs>
+                    <to_state>active</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>active</name>
+                <on_entry>
+                    <timer_start>
+                        <name>spawn_timer</name>
+                        <time> <xpath>objects/object[type=%bonus_type%]/bmodel/spawn_delay/text()</xpath> </time>
+                    </timer_start>
+                </on_entry>
+                <transition>
+                    <inputs> <message><name>disable</name></message> </inputs>
+                    <to_state>disabled</to_state>
+                </transition>
+                <on_input>
+                    <inputs>
+                        <timer_done>spawn_timer</timer_done>
+                        <count_systems>
+                            <name>bmodel_bonus</name>
+                            <params>
+                                <object_type> <param>bonus_type</param> </object_type>
+                                <user> <param>user</param> </user>
+                            </params>
+                            <less_than> <xpath>objects/object[type=%bonus_type%]/bmodel/max_bonus_objects/text()</xpath> </less_than>
+                        </count_systems>
+                    </inputs>
+                    <actions>
+                        <spawn_system>
+                            <name>bmodel_bonus</name>
+                            <params>
+                                <object_type> <param>bonus_type</param> </object_type>
+                                <user> <param>user</param> </user>
+                            </params>
+                        </spawn_system>
+                    </actions>
+                </on_input>
+            </state>
+        </fsm>
+    </system>
+
+    <!-- Бонусный объект. Одна система на каждый бонусный объект на карте. -->
+    <system>
+        <name>bmodel_bonus</name>
+        <params>
+            <object_type/>
+            <coord_x/>
+            <coord_y/>
+            <clicks_left/>
+            <find_success/>
+            <find_failed/>
+            <user/>
+        </params>
+        <fsm>
+            <state>
+                <name>initial</name>
+                <transition>
+                    <to_state>find_place</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>find_place</name>
+                <on_entry>
+                    <find_free_place>
+                        <user> <param>user</param> </user>
+                        <on_territory> <xpath>objects/object[type=%object_type%]/bmodel/spawn_territory/text()</xpath> </on_territory>
+                        <width> <xpath>objects/object[type=%object_type%]/width/text()</xpath> </width>
+                        <length> <xpath>objects/object[type=%object_type%]/length/text()</xpath> </length>
+                        <found_x>coord_x</found_x>
+                        <found_y>coord_y</found_y>
+                        <found_success>find_success</found_success>
+                        <found_failed>find_failed</found_failed>
+                    </find_free_place>
+                </on_entry>
+                <transition>
+                    <is_true>find_success</is_true>
+                    <to_state>spawn</to_state>
+                </transition>
+                <transition>
+                    <is_true>find_failed</is_true>
+                    <to_state>die</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>spawn</name>
+                <on_entry>
+                    <object_add>
+                        <user> <param>user</param> </user>
+                        <coord_x> <param>coord_x</param> </coord_x>
+                        <coord_y> <param>coord_y</param> </coord_y>
+                        <width> <xpath>objects/object[type=%object_type%]/width/text()</xpath> </width>
+                        <length> <xpath>objects/object[type=%object_type%]/length/text()</xpath> </length>
+                    </object_add>
+                    <param_set>
+                        <name>clicks_left</name>
+                        <value> <xpath>objects/object[type=%object_type%]/bonus_clicks/text()</xpath> </value>
+                    </param_set>
+                </on_entry>
+                <transition>
+                    <to_state>active</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>active</name>
+                <transition>
+                    <inputs> <message><name>bonus_click</name></message> </inputs>
+                    <to_state>clicked</to_state>
+                </transition>
+                <transition>
+                    <inputs>
+                        <param>
+                            <name>clicks_left</name>
+                            <less_or_equal_to_zero/>
+                        </param>
+                    </inputs>
+                    <to_state>remove</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>clicked</name>
+                <transition>
+                    <inputs>
+                        <system_param>
+                            <system>
+                                <name>city</name>
+                            </system>
+                            <param>energy</param>
+                            <greater_or_equal_to> <xpath>energy/bonus_click/text()</xpath> </greater_or_equal_to>
+                        </system_param>
+                    </inputs>
+                    <to_state>collect</to_state>
+                </transition>
+                <transition>
+                    <inputs>
+                        <system_param>
+                            <system>
+                                <name>city</name>
+                            </system>
+                            <param>energy</param>
+                            <less_than> <xpath>energy/bonus_click/text()</xpath> </less_than>
+                        </system_param>
+                    </inputs>
+                    <to_state>active</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>collect</name>
+                <on_entry>
+                    <message>
+                        <name>energy_sub</name>
+                        <args><value> <xpath>energy/bonus_click/text()</xpath> </value></args>
+                        <to_system>
+                            <name>city</name>
+                        </to_system>
+                    </message>
+                    <param_dec> <name>clicks_left</name> </param_dec>
+                    <spawn_systems>
+                        <name>command</name>
+                        <use_params_from> <xpath>objects/object[type/text()=%object_type%]/bmodel/on_bonus_click/command</xpath> </use_params_from>
+                        <params>
+                            <user> <param>user</param> </user>
+                        </params>
+                    </spawn_systems>
+                </on_entry>
+                <transition>
+                    <to_state>active</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>remove</name>
+                <on_entry>
+                    <object_remove>
+                        <user> <param>user</param> </user>
+                        <coord_x> <param>coord_x</param> </coord_x>
+                        <coord_y> <param>coord_y</param> </coord_y>
+                        <width> <xpath>objects/object[type=%object_type%]/width/text()</xpath> </width>
+                        <length> <xpath>objects/object[type=%object_type%]/length/text()</xpath> </length>
+                    </object_remove>
+                </on_entry>
+                <transition>
+                    <to_state>die</to_state>
+                </transition>
+            </state>
+            <state>
+                <name>die</name>
+                <on_entry>
+                    <kill_system/>
+                </on_entry>
+            </state>
+        </fsm>
+    </system>
+</xml>

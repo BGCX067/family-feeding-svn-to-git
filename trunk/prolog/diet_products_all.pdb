@@ -1,0 +1,108 @@
+%language: eclipse prolog
+
+:-module(diet_products).
+:-export(goal/1).
+:-export(nutrition_per_mass/1).
+:-export(product_raw/12).
+
+%data
+%units: kal, mg
+
+%desired amounts of distinct products in daily ration: min, max.
+goal(products_count_minmax(0,100)).
+
+%overall products mass in daily ration: min, max.
+goal(products_mass_minmax(0,10000000)).
+
+%overall products nutrition constraints in daily ration: min, max for every component.
+goal(products_nutrition_minmax(
+    calories(0,3260000),
+    protein(120000,160000),
+    fat(120000,130000),
+    carbo(400000,420000),
+    sodium(0,2300000),
+    chol(0,300000),
+    fiber(25000,35000))).
+
+%product weight that the facts below are listed for.
+nutrition_per_mass(100000).
+
+%products nutrition facts.
+%energy - energy value for nutrition_per_mass of product
+%prot - protein mass for nutrition_per_mass of product
+%fat - fat mass for nutrition_per_mass of product
+%carbo - carbohydrate mass for nutrition_per_mass of product
+%sodium - sodium mass in microgramms for nutrition_per_mass of product
+%cholesterol - cholesterol mass in microgramms for nutrition_per_mass of product
+%fiber - fiber mass for nutrition_per_mass of product
+%unit - mass fraction (if one can weights 250g, we can count only 250g, 500g, 750g, etc.)
+%min - minimal desired daily consumption mass (I want to eat at least this amount of product)
+%max - maximal desired daily consumption mass (I want to eat no more than this amount of product)
+%bar code - just for convenience to distinguish between similar products
+%           |energy| prot|  fat |carbo| sodium| cholesterol| fiber| unit | min  |   max  |     bar code    |        title
+%product_raw(113000,23600,  1900,  400,      0,       85000,     0, 50000,      0,10000000,               "","chicken breast fillet raw").
+%product_raw( 82000,15000,  1100, 1100,      0,           0,     0, 10000,      0,10000000,               "","squid raw").
+%product_raw(105000,25000,     0,    0, 300000,           0,     0, 10000, 200000,  200000,               "","tuna in brine (drained)").
+%product_raw(189000,27100,  9000,    0,      0,           0,     0, 10000,      0,10000000,"6 006431 000712","tuna in oil <fortuna tuna>").
+%product_raw(111000,16000,  5000,  400,      0,           0,     0, 10000,      0,10000000,"4 607038 060387","conserved natural squid <fish world>").
+%product_raw(139700,15400,  6900, 4000,      0,           0,     0, 10000,      0,10000000,               "","crab meat imitation <snow crab>").
+%product_raw( 37500, 8700,   300,    0, 300000,           0,     0, 10000,      0,10000000,"4 601132 997891","crayfish fillet in brine <meridian>").
+%product_raw(138000,21000,  6000,    0,      0,           0,     0, 10000,      0,10000000,"4 820080 950509","gorbusha natural <akvamarin>").
+%product_raw(105000,12700,  5000, 2400,      0,           0,     0, 10000, 350000,10000000,               "","tvorog grained <prostokvashino>").
+%product_raw(375000,75000,  3400, 9000, 700000,           0,     0,  2000,      0,10000000,               "","casein protein <optimum nutrition>").
+ product_raw(408000,81600,  3400,10200, 200000,      102000,     0,  1000,  25000,   45000,               "","whey protein <optimum nutrition>").
+%product_raw(360000,81600,  1600, 6500,1410000,           0,     0, 10000,      0,10000000,               "","egg protein <optimum nutrition>").
+
+ product_raw(900000,    0,100000,    0,      0,           0,     0, 10000,      0,10000000,               "","olive oil").
+%product_raw(627000, 3000, 67000, 2800,      0,           0,     0,  5000,      0,10000000,"4 600699 501169","mayonnaise <sloboda provance>").
+%product_raw(206000, 2500, 20000, 4000,      0,           0,     0,  5000,      0,10000000,"4 607025 396840","cream 20% <country hut>").
+
+%product_raw(355000,13400,  2500,70000,      0,           0,     0, 10000,      0,10000000,"4 607024 590676","whole grain crisps <fitness line>").
+ product_raw(320000,18000,  7700,45300,   3000,           0, 16500,100000, 100000,  100000,               "","oat bran <myllyn paras>").
+ product_raw(220000,15000,  3500,33000,   3000,           0, 43000,100000, 100000,  100000,               "","rye bran <dietmarka>").
+%product_raw(333000,11300,  3500,64100,   3000,           0,  6500, 10000,      0,10000000,"4 607066 870125","mixed instant flakes <5 zlakov>").
+ product_raw(379000, 6300,   800,86500, 700000,           0,     0, 10000, 200000,  250000,"4 606272 013845","extrused corn flakes <hrutka>").
+%product_raw(320000,  500,     0,79000,      0,           0,     0, 50000,      0,10000000,"4 600492 107223","cranberry paste <sharmel>").
+%product_raw(357900, 3900,  1000,83200,      0,           0,     0, 10000,      0,10000000,"4 600294 000593","dried ananas & papaya <nature gifts>").
+%product_raw(323000, 4500,     0,73000,      0,           0,     0, 50000,      0,10000000,"4 600294 006366","dried cherries <nature gifts>").
+%product_raw(346000,  800,  1000,83000,      0,           0,     0, 50000,      0,10000000,"4 607018 591511","dried cranberries <rosso>").
+%product_raw(265000, 2000,   500,75500,      0,           0,     0, 50000,      0,  250000,               "","dried dates <baraka>").
+%product_raw(276000, 1800,     0,70900,      0,           0,     0, 50000,      0,10000000,"4 620000 671749","dried golden raisins <good food>").
+%product_raw(278000, 2500,   600,63900,      0,           0,     0, 10000,      0,10000000,"4 600294 006540","dried raisins <nature gifts>").
+%product_raw(278000, 2500,   600,63900,      0,           0,     0, 10000,      0,10000000,"4 600294 000562","dried raisins dark <nature gifts>").
+ product_raw(256000, 2300,     0,58400,      0,           0,  7100, 10000, 160000,  160000,"4 600294 002078","dried prunes <nature gifts>").
+%product_raw( 60000,    0,     0,14000,      0,           0,     0, 50000,      0,10000000,"4 670001 090315","conserved pineapples <barco>").
+%product_raw( 24800,    0,     0, 6200,      0,           0,     0, 50000,      0, 1000000,"4 601201 017260","vegetable mix juice <tonus>").
+%product_raw(263000, 7500,  2900,50500,      0,           0,     0, 10000,      0,10000000,               "","dried bread").
+%product_raw(277000,10400,  2700,51600,      0,           0,     0, 10000,      0,10000000,"4 602701 001711","hercules bread").
+%product_raw(227000, 9100,  1100,56000,      0,           0,     0, 50000,      0,10000000,"4 607036 770349","pita bread").
+%product_raw(246000, 7900,   900,50200,      0,           0,     0, 10000,      0,10000000,"4 601712 006852","postny bread").
+%product_raw(333000, 7000,  1000,74000,   6000,           0,     0, 10000,      0,10000000,"4 620001 610051","white rice").
+%product_raw(346000,13000,  1500,70200, 700000,           0,  4000,  5000,   5000, 1000000,               "","pasta <de cecco>").
+
+%product_raw(255000,21000, 17000, 4500,      0,           0,     0,100000,      0,10000000,"4 607156 523962","salmon frozen medalion <salmon house> 400 g").
+%product_raw(522000,45000, 38000,    0, 548000,     2017000,     0, 10000,      0,10000000,               "","dried eggs").
+%product_raw(431000,38000, 29000, 4000,1529000,       88000,     0,  5000,   5000, 1000000,               "","parmigiano reggiano cheese").
+%product_raw(247000,17500, 19000, 1500,      0,           0,     0,125000,      0,  500000,"4 033800 234876","mozarella cheese <valgrande>").
+%product_raw(466000,11000, 45000,  600,      0,           0,     0,100000,      0,  200000,"5 999060 801014","hungarian bacon raw smoked").
+%product_raw(157000,12700, 11500,  700,      0,           0,     0, 65000,      0,10000000,               "","chicken egg category 0").
+%product_raw(157000,12700, 11500,  700,      0,           0,     0, 55000,      0,10000000,               "","chicken egg category 1").
+%product_raw(157000,12700, 11500,  700,      0,           0,     0, 45000,      0,10000000,               "","chicken egg category 2").
+
+%product_raw(404000, 7600, 28800,28600,      0,           0,     0, 45000,      0,10000000,"4 607016 355504","cheese cake with chocolate <rostagroexport>").
+%product_raw(490000, 3100, 26000,59000,      0,           0,     0,110000,      0,10000000,"5 000159 385688","chocolate bar <bounty snack size>").
+%product_raw(484500, 7700, 23500,61700,      0,           0,     0,225000,      0,10000000,"4 604386 006746","cookies <akulchev>").
+
+%product_raw(575000,21000, 49000,22000,   1000,           0, 12000, 10000,      0,10000000,               "","almond").
+%product_raw(642100,18900, 55300,17200,   1000,           0, 12000, 10000,      0,10000000,"4 600294 001309","roasted almond <nature gifts>").
+%product_raw( 66000, 2900,  3700, 4700,      0,           0,     0,310000,      0,  930000,"4 607053 473537","milk <prostokvashino> 930 ml").
+%product_raw( 35000, 2800,   500, 4900,      0,           0,     0,250000,      0,10000000,"4 690228 003998","milk 0.5% <country hut>").
+ product_raw( 59000, 2900,  3200, 4700,      0,       10000,     0, 50000,1700000, 1700000,               "","milk 3.2% <country hut> 950 ml").
+%product_raw( 59000, 2800,  3200, 4100,  40000,           0,     0,250000,1000000, 1000000,               "","kefir 3.2%").
+%product_raw( 83000, 2800,  2200,13000,      0,           0,     0,290000,      0,  500000,"4 600605 015360","yoghurt <activia> with cereals and apple 290 ml").
+%product_raw( 97000, 3800,  2900,14000,      0,           0,     0,125000,      0,  500000,"4 600605 014455","yoghurt <activia> with cereals and bran 125 ml").
+%product_raw( 99000, 3800,  2900,14500,      0,           0,     0,125000,      0,10000000,"4 600605 011669","yoghurt <activia> with plums 125 ml").
+%product_raw( 92000, 2800,  2400,14700,      0,           0,     0,800000,1600000, 1600000,"4 690228 006821","yoghurt <chudo> with strawberry 800 ml").
+%product_raw( 89000, 3000,  2500,13500,      0,           0,     0,310000,      0, 1860000,"4 607161 625569","yoghurt <prostokvashino> with blueberry 930 ml").
+
+%           |energy| prot| fat  |carbo| sodium| cholesterol| fiber| unit |  min  |   max  |     bar code    |        title
